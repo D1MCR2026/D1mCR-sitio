@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D1MCR – Egresados y voluntarios</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #f3f5f9; color: #1f2937;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  header { background: #fff; padding: 16px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  header a { color: #2563eb; text-decoration: none; font-size: .9rem; }
+  header h1 { margin: 6px 0 0; font-size: 1.4rem; }
+  main { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
+  .barra { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .barra input { flex: 1; min-width: 200px; }
+  input, select, textarea {
+    padding: 10px 12px; font-size: 1rem; width: 100%;
+    border: 1px solid #d1d5db; border-radius: 8px; font-family: inherit;
+  }
+  .barra select { width: auto; }
+  button {
+    padding: 10px 16px; font-size: .95rem; font-weight: 600; color: #fff;
+    background: #2563eb; border: 0; border-radius: 8px; cursor: pointer;
+  }
+  button:hover { background: #1d4ed8; }
+  button.sec { background: #e5e7eb; color: #1f2937; }
+  button.sec:hover { background: #d1d5db; }
+  button.mini { padding: 6px 10px; font-size: .8rem; margin-right: 6px; }
+  button.peligro { background: #dc2626; }
+  button.peligro:hover { background: #b91c1c; }
+  .tabla-wrap { overflow-x: auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { padding: 11px 12px; text-align: left; border-bottom: 1px solid #eef0f4; white-space: nowrap; }
+  th { background: #f9fafb; font-size: .8rem; text-transform: uppercase; color: #6b7280; }
+  #vacio { text-align: center; color: #6b7280; padding: 20px; }
+  dialog { border: 0; border-radius: 14px; padding: 24px; width: min(520px, 94vw); box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  dialog h2 { margin: 0 0 8px; font-size: 1.2rem; }
+  label { display: block; font-size: .85rem; font-weight: 600; margin: 12px 0 5px; }
+  .fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .acciones { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+  #err { color: #b91c1c; font-size: .9rem; min-height: 1.2em; margin-top: 10px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html">← Volver al menú</a>
+  <h1>Egresados y voluntarios</h1>
+</header>
+
+<main>
+  <div class="barra">
+    <input id="buscar" type="search" placeholder="Buscar por nombre o cédula">
+    <select id="filtroTipo">
+      <option value="">Todos</option>
+      <option value="egresado">Egresados</option>
+      <option value="voluntario">Voluntarios</option>
+    </select>
+    <button id="btnNuevo">+ Nueva persona</button>
+  </div>
+
+  <div class="tabla-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre</th><th>Tipo</th><th>Cédula</th><th>Teléfono</th>
+          <th>Correo</th><th>Año egreso</th><th>Curso</th><th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="filas"></tbody>
+    </table>
+    <p id="vacio" hidden>No hay resultados.</p>
+  </div>
+</main>
+
+<dialog id="dlg">
+  <form id="formPersona">
+    <h2 id="titulo">Nueva persona</h2>
+
+    <div class="fila2">
+      <div>
+        <label for="f_tipo">Tipo</label>
+        <select id="f_tipo">
+          <option value="egresado">Egresado</option>
+          <option value="voluntario">Voluntario</option>
+        </select>
+      </div>
+      <div>
+        <label for="f_anio">Año de egreso</label>
+        <input id="f_anio" type="number" min="1990" max="2100">
+      </div>
+    </div>
+
+    <label for="f_nombre">Nombre completo *</label>
+    <input id="f_nombre" required>
+
+    <div class="fila2">
+      <div>
+        <label for="f_cedula">Cédula</label>
+        <input id="f_cedula">
+      </div>
+      <div>
+        <label for="f_telefono">Teléfono</label>
+        <input id="f_telefono">
+      </div>
+    </div>
+
+    <label for="f_correo">Correo</label>
+    <input id="f_correo" type="email">
+
+    <label for="f_curso">Curso</label>
+    <input id="f_curso">
+
+    <label for="f_situacion">Situación actual</label>
+    <input id="f_situacion" placeholder="Ej: trabaja, estudia, busca empleo">
+
+    <label for="f_notas">Notas</label>
+    <textarea id="f_notas" rows="3"></textarea>
+
+    <div id="err"></div>
+    <div class="acciones">
+      <button type="button" class="sec" id="btnCancelar">Cancelar</button>
+      <button type="submit">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://ytaozafruibuakadoncm.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_pjgCeUpErjtlgo4WGN79Wg_hxB045Hu';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const $ = (id) => document.getElementById(id);
+
+  let personas = [];
+  let editandoId = null;
+
+  async function iniciar() {
+    const { data } = await db.auth.getSession();
+    if (!data.session) { location.href = 'index.html'; return; }
+    const { data: perfil } = await db
+      .from('perfiles').select('rol').eq('id', data.session.user.id).single();
+    if (!perfil || perfil.rol === 'voluntario') { location.href = 'index.html'; return; }
+    cargar();
+  }
+
+  async function cargar() {
+    const { data, error } = await db.from('personas').select('*').order('nombre');
+    if (error) { alert('Error al cargar: ' + error.message); return; }
+    personas = data;
+    pintar();
+  }
+
+  function pintar() {
+    const q = $('buscar').value.trim().toLowerCase();
+    const t = $('filtroTipo').value;
+    const lista = personas.filter(p =>
+      (!t || p.tipo === t) &&
+      (!q || (p.nombre || '').toLowerCase().includes(q) ||
+             (p.cedula || '').toLowerCase().includes(q))
+    );
+    const tbody = $('filas');
+    tbody.innerHTML = '';
+    lista.forEach(p => {
+      const tr = document.createElement('tr');
+      [p.nombre, p.tipo, p.cedula, p.telefono, p.correo, p.anio_egreso, p.curso]
+        .forEach(v => {
+          const td = document.createElement('td');
+          td.textContent = v ?? '';
+          tr.appendChild(td);
+        });
+      const td = document.createElement('td');
+      const be = document.createElement('button');
+      be.textContent = 'Editar'; be.className = 'mini';
+      be.onclick = () => abrir(p);
+      const bd = document.createElement('button');
+      bd.textContent = 'Eliminar'; bd.className = 'mini peligro';
+      bd.onclick = () => eliminar(p);
+      td.append(be, bd);
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+    $('vacio').hidden = lista.length > 0;
+  }
+
+  function abrir(p) {
+    editandoId = p ? p.id : null;
+    $('titulo').textContent = p ? 'Editar persona' : 'Nueva persona';
+    $('f_tipo').value = p?.tipo || 'egresado';
+    $('f_anio').value = p?.anio_egreso ?? '';
+    $('f_nombre').value = p?.nombre || '';
+    $('f_cedula').value = p?.cedula || '';
+    $('f_telefono').value = p?.telefono || '';
+    $('f_correo').value = p?.correo || '';
+    $('f_curso').value = p?.curso || '';
+    $('f_situacion').value = p?.situacion_actual || '';
+    $('f_notas').value = p?.notas || '';
+    $('err').textContent = '';
+    $('dlg').showModal();
+  }
+
+  $('formPersona').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = (id) => $(id).value.trim() || null;
+    const datos = {
+      tipo: $('f_tipo').value,
+      nombre: $('f_nombre').value.trim(),
+      cedula: v('f_cedula'),
+      telefono: v('f_telefono'),
+      correo: v('f_correo'),
+      anio_egreso: $('f_anio').value ? Number($('f_anio').value) : null,
+      curso: v('f_curso'),
+      situacion_actual: v('f_situacion'),
+      notas: v('f_notas')
+    };
+    if (!datos.nombre) { $('err').textContent = 'El nombre es obligatorio.'; return; }
+    const res = editandoId
+      ? await db.from('personas').update(datos).eq('id', editandoId)
+      : await db.from('personas').insert(datos);
+    if (res.error) { $('err').textContent = 'No se pudo guardar: ' + res.error.message; return; }
+    $('dlg').close();
+    cargar();
+  });
+
+  async function eliminar(p) {
+    if (!confirm('¿Eliminar a ' + p.nombre + '? También se borrarán sus registros de asistencia.')) return;
+    const { error } = await db.from('personas').delete().eq('id', p.id);
+    if (error) { alert('No se pudo eliminar: ' + error.message); return; }
+    cargar();
+  }
+
+  $('btnNuevo').onclick = () => abrir(null);
+  $('btnCancelar').onclick = () => $('dlg').close();
+  $('buscar').addEventListener('input', pintar);
+  $('filtroTipo').addEventListener('change', pintar);
+
+  iniciar();
+</script>
+</body>
+</html>
