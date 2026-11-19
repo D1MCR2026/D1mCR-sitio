@@ -80,9 +80,10 @@
   async function mostrarPanel(user) {
     const { data, error } = await db
       .from('perfiles').select('nombre, rol').eq('id', user.id).single();
-    if (error || !data) {
+        if (error || !data) {
+      const detalle = error ? (error.code + ' - ' + error.message) : 'respuesta vacía';
       await db.auth.signOut();
-      $('msgError').textContent = 'No se encontró tu perfil. Avisá al administrador.';
+      $('msgError').textContent = 'No se pudo leer el perfil: ' + detalle;
       return;
     }
     $('saludo').textContent = 'Hola, ' + data.nombre;
