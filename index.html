@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D1MCR – Acceso</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center;
+    justify-content: center; background: #f3f5f9;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #1f2937;
+  }
+  .tarjeta {
+    background: #fff; width: 100%; max-width: 420px; margin: 16px; padding: 32px;
+    border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.08);
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  p.sub { margin: 0 0 20px; color: #6b7280; font-size: .95rem; }
+  label { display: block; font-size: .9rem; margin: 14px 0 6px; font-weight: 600; }
+  input {
+    width: 100%; padding: 11px 12px; font-size: 1rem;
+    border: 1px solid #d1d5db; border-radius: 8px;
+  }
+  button {
+    width: 100%; margin-top: 20px; padding: 12px; font-size: 1rem; font-weight: 600;
+    color: #fff; background: #2563eb; border: 0; border-radius: 8px; cursor: pointer;
+  }
+  button:hover { background: #1d4ed8; }
+  button.sec { background: #e5e7eb; color: #1f2937; margin-top: 12px; }
+  button.sec:hover { background: #d1d5db; }
+  button:disabled { opacity: .6; cursor: not-allowed; }
+  .error { color: #b91c1c; font-size: .9rem; margin-top: 14px; min-height: 1.2em; }
+  .rol {
+    display: inline-block; background: #dbeafe; color: #1e40af; padding: 3px 10px;
+    border-radius: 999px; font-size: .8rem; font-weight: 600;
+  }
+  .menu { display: grid; gap: 10px; margin-top: 20px; }
+  .menu button { margin-top: 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<main class="tarjeta" id="login">
+  <h1>Dale Una Mano a Costa Rica</h1>
+  <p class="sub">Ingresá con tu cuenta para continuar.</p>
+  <form id="formLogin">
+    <label for="correo">Correo</label>
+    <input id="correo" type="email" autocomplete="username" required>
+    <label for="clave">Contraseña</label>
+    <input id="clave" type="password" autocomplete="current-password" required>
+    <button type="submit" id="btnEntrar">Entrar</button>
+    <div class="error" id="msgError"></div>
+  </form>
+</main>
+
+<!-- PANEL -->
+<main class="tarjeta" id="panel" hidden>
+  <h1 id="saludo">Hola</h1>
+  <span class="rol" id="rol"></span>
+  <div class="menu" id="menu">
+    <button disabled>Egresados (próximamente)</button>
+    <button disabled>Actividades (próximamente)</button>
+    <button disabled>Asistencia y horas (próximamente)</button>
+    <button disabled>Ingresos al edificio (próximamente)</button>
+  </div>
+  <button class="sec" id="btnSalir">Cerrar sesión</button>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://ytaozafruibuakadoncm.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_pjgCeUpErjtlgo4WGN79Wg_hxB045Hu';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const $ = (id) => document.getElementById(id);
+
+  async function mostrarPanel(user) {
+    const { data, error } = await db
+      .from('perfiles').select('nombre, rol').eq('id', user.id).single();
+    if (error || !data) {
+      await db.auth.signOut();
+      $('msgError').textContent = 'No se encontró tu perfil. Avisá al administrador.';
+      return;
+    }
+    $('saludo').textContent = 'Hola, ' + data.nombre;
+    $('rol').textContent = data.rol;
+    // Los voluntarios no ven el menú de gestión
+    $('menu').hidden = data.rol === 'voluntario';
+    $('login').hidden = true;
+    $('panel').hidden = false;
+  }
+
+  $('formLogin').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('msgError').textContent = '';
+    $('btnEntrar').disabled = true;
+    const { data, error } = await db.auth.signInWithPassword({
+      email: $('correo').value.trim(),
+      password: $('clave').value
+    });
+    $('btnEntrar').disabled = false;
+    if (error) {
+      $('msgError').textContent = 'Correo o contraseña incorrectos.';
+      return;
+    }
+    mostrarPanel(data.user);
+  });
+
+  $('btnSalir').addEventListener('click', async () => {
+    await db.auth.signOut();
+    $('panel').hidden = true;
+    $('login').hidden = false;
+    $('clave').value = '';
+  });
+
+  // Si ya había una sesión abierta, entra directo
+  db.auth.getSession().then(({ data }) => {
+    if (data.session) mostrarPanel(data.session.user);
+  });
+</script>
+</body>
+</html>
