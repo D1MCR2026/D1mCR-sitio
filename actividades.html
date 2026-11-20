@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D1MCR – Actividades</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #f3f5f9; color: #1f2937;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  header { background: #fff; padding: 16px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  header a { color: #2563eb; text-decoration: none; font-size: .9rem; }
+  header h1 { margin: 6px 0 0; font-size: 1.4rem; }
+  main { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
+  .barra { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .barra input { flex: 1; min-width: 200px; }
+  input, select, textarea {
+    padding: 10px 12px; font-size: 1rem; width: 100%;
+    border: 1px solid #d1d5db; border-radius: 8px; font-family: inherit;
+  }
+  button {
+    padding: 10px 16px; font-size: .95rem; font-weight: 600; color: #fff;
+    background: #2563eb; border: 0; border-radius: 8px; cursor: pointer;
+  }
+  button:hover { background: #1d4ed8; }
+  button.sec { background: #e5e7eb; color: #1f2937; }
+  button.sec:hover { background: #d1d5db; }
+  button.mini { padding: 6px 10px; font-size: .8rem; margin-right: 6px; }
+  button.peligro { background: #dc2626; }
+  button.peligro:hover { background: #b91c1c; }
+  .tabla-wrap { overflow-x: auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { padding: 11px 12px; text-align: left; border-bottom: 1px solid #eef0f4; }
+  td.nowrap { white-space: nowrap; }
+  th { background: #f9fafb; font-size: .8rem; text-transform: uppercase; color: #6b7280; }
+  #vacio { text-align: center; color: #6b7280; padding: 20px; }
+  dialog { border: 0; border-radius: 14px; padding: 24px; width: min(520px, 94vw); box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  dialog h2 { margin: 0 0 8px; font-size: 1.2rem; }
+  label { display: block; font-size: .85rem; font-weight: 600; margin: 12px 0 5px; }
+  .acciones { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+  #err { color: #b91c1c; font-size: .9rem; min-height: 1.2em; margin-top: 10px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html">← Volver al menú</a>
+  <h1>Actividades</h1>
+</header>
+
+<main>
+  <div class="barra">
+    <input id="buscar" type="search" placeholder="Buscar por nombre o lugar">
+    <button id="btnNueva">+ Nueva actividad</button>
+  </div>
+
+  <div class="tabla-wrap">
+    <table>
+      <thead>
+        <tr><th>Fecha</th><th>Nombre</th><th>Lugar</th><th>Descripción</th><th>Acciones</th></tr>
+      </thead>
+      <tbody id="filas"></tbody>
+    </table>
+    <p id="vacio" hidden>No hay actividades.</p>
+  </div>
+</main>
+
+<dialog id="dlg">
+  <form id="formActividad">
+    <h2 id="titulo">Nueva actividad</h2>
+
+    <label for="f_nombre">Nombre *</label>
+    <input id="f_nombre" required>
+
+    <label for="f_fecha">Fecha *</label>
+    <input id="f_fecha" type="date" required>
+
+    <label for="f_lugar">Lugar</label>
+    <input id="f_lugar">
+
+    <label for="f_desc">Descripción</label>
+    <textarea id="f_desc" rows="3"></textarea>
+
+    <div id="err"></div>
+    <div class="acciones">
+      <button type="button" class="sec" id="btnCancelar">Cancelar</button>
+      <button type="submit">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://ytaozafruibuakadoncm.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_pjgCeUpErjtlgo4WGN79Wg_hxB045Hu';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const $ = (id) => document.getElementById(id);
+
+  let actividades = [];
+  let editandoId = null;
+
+  async function iniciar() {
+    const { data } = await db.auth.getSession();
+    if (!data.session) { location.href = 'index.html'; return; }
+    const { data: perfil } = await db
+      .from('perfiles').select('rol').eq('id', data.session.user.id).single();
+    if (!perfil || perfil.rol === 'voluntario') { location.href = 'index.html'; return; }
+    cargar();
+  }
+
+  async function cargar() {
+    const { data, error } = await db.from('actividades').select('*').order('fecha', { ascending: false });
+    if (error) { alert('Error al cargar: ' + error.message); return; }
+    actividades = data;
+    pintar();
+  }
+
+  function formatoFecha(f) {
+    if (!f) return '';
+    const [a, m, d] = f.split('-');
+    return d + '/' + m + '/' + a;
+  }
+
+  function pintar() {
+    const q = $('buscar').value.trim().toLowerCase();
+    const lista = actividades.filter(a =>
+      !q || (a.nombre || '').toLowerCase().includes(q) ||
+            (a.lugar || '').toLowerCase().includes(q)
+    );
+    const tbody = $('filas');
+    tbody.innerHTML = '';
+    lista.forEach(a => {
+      const tr = document.createElement('tr');
+      [formatoFecha(a.fecha), a.nombre, a.lugar, a.descripcion].forEach((v, i) => {
+        const td = document.createElement('td');
+        if (i === 0) td.className = 'nowrap';
+        td.textContent = v ?? '';
+        tr.appendChild(td);
+      });
+      const td = document.createElement('td');
+      td.className = 'nowrap';
+      const be = document.createElement('button');
+      be.textContent = 'Editar'; be.className = 'mini';
+      be.onclick = () => abrir(a);
+      const bd = document.createElement('button');
+      bd.textContent = 'Eliminar'; bd.className = 'mini peligro';
+      bd.onclick = () => eliminar(a);
+      td.append(be, bd);
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+    $('vacio').hidden = lista.length > 0;
+  }
+
+  function abrir(a) {
+    editandoId = a ? a.id : null;
+    $('titulo').textContent = a ? 'Editar actividad' : 'Nueva actividad';
+    $('f_nombre').value = a?.nombre || '';
+    $('f_fecha').value = a?.fecha || '';
+    $('f_lugar').value = a?.lugar || '';
+    $('f_desc').value = a?.descripcion || '';
+    $('err').textContent = '';
+    $('dlg').showModal();
+  }
+
+  $('formActividad').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const datos = {
+      nombre: $('f_nombre').value.trim(),
+      fecha: $('f_fecha').value,
+      lugar: $('f_lugar').value.trim() || null,
+      descripcion: $('f_desc').value.trim() || null
+    };
+    if (!datos.nombre || !datos.fecha) {
+      $('err').textContent = 'El nombre y la fecha son obligatorios.';
+      return;
+    }
+    const res = editandoId
+      ? await db.from('actividades').update(datos).eq('id', editandoId)
+      : await db.from('actividades').insert(datos);
+    if (res.error) { $('err').textContent = 'No se pudo guardar: ' + res.error.message; return; }
+    $('dlg').close();
+    cargar();
+  });
+
+  async function eliminar(a) {
+    if (!confirm('¿Eliminar la actividad "' + a.nombre + '"? También se borrará su asistencia registrada.')) return;
+    const { error } = await db.from('actividades').delete().eq('id', a.id);
+    if (error) { alert('No se pudo eliminar: ' + error.message); return; }
+    cargar();
+  }
+
+  $('btnNueva').onclick = () => abrir(null);
+  $('btnCancelar').onclick = () => $('dlg').close();
+  $('buscar').addEventListener('input', pintar);
+
+  iniciar();
+</script>
+</body>
+</html>
