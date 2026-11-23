@@ -89,7 +89,7 @@
     $('saludo').textContent = 'Hola, ' + data.nombre;
     $('rol').textContent = data.rol;
     // Los voluntarios no ven el menú de gestión
-    $('menu').hidden = data.rol === 'voluntario';
+    if (data.rol === 'voluntario') { location.href = 'voluntario.html'; return; }
     $('login').hidden = true;
     $('panel').hidden = false;
   }
