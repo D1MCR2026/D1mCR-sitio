@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D1MCR – Asistencia y horas</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #f3f5f9; color: #1f2937;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  header { background: #fff; padding: 16px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  header a { color: #2563eb; text-decoration: none; font-size: .9rem; }
+  header h1 { margin: 6px 0 0; font-size: 1.4rem; }
+  main { max-width: 1000px; margin: 20px auto; padding: 0 16px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .tabs button { background: #e5e7eb; color: #1f2937; }
+  .tabs button.activa { background: #2563eb; color: #fff; }
+  input, select {
+    padding: 10px 12px; font-size: 1rem; width: 100%;
+    border: 1px solid #d1d5db; border-radius: 8px; font-family: inherit; background: #fff;
+  }
+  button {
+    padding: 10px 16px; font-size: .95rem; font-weight: 600; color: #fff;
+    background: #2563eb; border: 0; border-radius: 8px; cursor: pointer;
+  }
+  button:hover { background: #1d4ed8; }
+  button.mini { padding: 6px 10px; font-size: .8rem; margin-right: 6px; }
+  button.verde { background: #16a34a; }
+  button.verde:hover { background: #15803d; }
+  button.gris { background: #e5e7eb; color: #1f2937; }
+  button.gris:hover { background: #d1d5db; }
+  button.peligro { background: #dc2626; }
+  button.peligro:hover { background: #b91c1c; }
+  .panel { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 4px 16px rgba(0,0,0,.06); margin-bottom: 16px; }
+  .panel h2 { margin: 0 0 12px; font-size: 1.05rem; }
+  .encabezado { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .encabezado h2 { margin: 0; }
+  .info { margin-top: 10px; color: #4b5563; font-size: .92rem; }
+  .agregar { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+  .agregar label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: 5px; }
+  .tabla-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eef0f4; }
+  td.nowrap { white-space: nowrap; }
+  th { background: #f9fafb; font-size: .8rem; text-transform: uppercase; color: #6b7280; }
+  td input { width: 90px; padding: 6px 8px; }
+  .etiqueta { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .78rem; font-weight: 600; white-space: nowrap; }
+  .e-inscrito { background: #fef3c7; color: #92400e; }
+  .e-confirmado { background: #dcfce7; color: #166534; }
+  .msg { min-height: 1.3em; margin-top: 10px; font-size: .9rem; }
+  .msg.error { color: #b91c1c; }
+  .msg.ok { color: #15803d; }
+  .vacio { text-align: center; color: #6b7280; padding: 16px; }
+  .total { margin-top: 12px; font-weight: 600; }
+  [hidden] { display: none !important; }
+  @media (max-width: 640px) { .agregar { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html">← Volver al menú</a>
+  <h1>Asistencia y horas</h1>
+</header>
+
+<main>
+  <div class="tabs">
+    <button id="tabAct" class="activa">Por actividad</button>
+    <button id="tabRes">Resumen de horas</button>
+  </div>
+
+  <!-- VISTA 1: POR ACTIVIDAD -->
+  <section id="vistaAct">
+    <div class="panel">
+      <h2>1. Elegí la actividad</h2>
+      <select id="selAct"></select>
+      <div class="info" id="infoAct"></div>
+    </div>
+
+    <div id="bloque" hidden>
+      <div class="panel">
+        <h2>Agregar a alguien que no se inscribió</h2>
+        <div class="agregar">
+          <div>
+            <label for="selPersona">Persona</label>
+            <select id="selPersona"></select>
+          </div>
+          <button id="btnAgregar">Agregar y confirmar</button>
+        </div>
+        <div class="msg" id="msg"></div>
+      </div>
+
+      <div class="panel">
+        <div class="encabezado">
+          <h2>Asistentes</h2>
+          <button class="verde" id="btnConfirmarTodos" hidden>Confirmar todos los inscritos</button>
+        </div>
+        <div class="tabla-wrap">
+          <table>
+            <thead><tr><th>Nombre</th><th>Tipo</th><th>Estado</th><th>Horas</th><th></th></tr></thead>
+            <tbody id="filasAsis"></tbody>
+          </table>
+          <p class="vacio" id="vacioAsis" hidden>Todavía no hay asistentes en esta actividad.</p>
+        </div>
+        <div class="total" id="totalAsis"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VISTA 2: RESUMEN -->
+  <section id="vistaRes" hidden>
+    <div class="panel">
+      <h2>Horas confirmadas por persona</h2>
+      <input id="buscarRes" type="search" placeholder="Buscar por nombre">
+      <div class="tabla-wrap" style="margin-top:12px">
+        <table>
+          <thead><tr><th>Nombre</th><th>Tipo</th><th>Actividades confirmadas</th><th>Pendientes</th><th>Horas totales</th></tr></thead>
+          <tbody id="filasRes"></tbody>
+        </table>
+        <p class="vacio" id="vacioRes" hidden>No hay datos todavía.</p>
+      </div>
+      <div class="total" id="totalRes"></div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://ytaozafruibuakadoncm.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_pjgCeUpErjtlgo4WGN79Wg_hxB045Hu';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const $ = (id) => document.getElementById(id);
+
+  let actividades = [];
+  let personas = [];
+  let actividadId = null;
+  let resumen = [];
+
+  function formatoFecha(f) {
+    if (!f) return '';
+    const [a, m, d] = f.split('-');
+    return d + '/' + m + '/' + a;
+  }
+  function duracion(a) {
+    if (!a || !a.hora_inicio || !a.hora_fin) return 0;
+    const [h1, m1] = a.hora_inicio.split(':').map(Number);
+    const [h2, m2] = a.hora_fin.split(':').map(Number);
+    const d = (h2 * 60 + m2 - (h1 * 60 + m1)) / 60;
+    return d > 0 ? Math.round(d * 100) / 100 : 0;
+  }
+  function actividadActual() {
+    return actividades.find(a => String(a.id) === String(actividadId));
+  }
+  function mensaje(texto, tipo) {
+    const m = $('msg');
+    m.textContent = texto;
+    m.className = 'msg ' + (tipo || '');
+  }
+  function etiqueta(estado) {
+    const s = document.createElement('span');
+    s.className = 'etiqueta ' + (estado === 'confirmado' ? 'e-confirmado' : 'e-inscrito');
+    s.textContent = estado === 'confirmado' ? 'Confirmado' : 'Inscrito';
+    return s;
+  }
+
+  async function iniciar() {
+    const { data } = await db.auth.getSession();
+    if (!data.session) { location.href = 'index.html'; return; }
+    const { data: perfil } = await db
+      .from('perfiles').select('rol').eq('id', data.session.user.id).single();
+    if (!perfil || perfil.rol === 'voluntario') { location.href = 'index.html'; return; }
+
+    const [a, p] = await Promise.all([
+      db.from('actividades').select('id,nombre,fecha,hora_inicio,hora_fin').order('fecha', { ascending: false }),
+      db.from('personas').select('id,nombre,tipo').order('nombre')
+    ]);
+    if (a.error || p.error) {
+      alert('Error al cargar datos: ' + (a.error || p.error).message);
+      return;
+    }
+    actividades = a.data;
+    personas = p.data;
+
+    const sel = $('selAct');
+    sel.innerHTML = '';
+    sel.appendChild(new Option('— Elegí una actividad —', ''));
+    actividades.forEach(x =>
+      sel.appendChild(new Option(formatoFecha(x.fecha) + ' · ' + x.nombre, x.id)));
+  }
+
+  async function cargarAsistencia() {
+    if (!actividadId) { $('bloque').hidden = true; $('infoAct').textContent = ''; return; }
+    $('bloque').hidden = false;
+
+    const act = actividadActual();
+    $('infoAct').textContent = duracion(act) > 0
+      ? 'Horario: ' + act.hora_inicio.slice(0, 5) + ' – ' + act.hora_fin.slice(0, 5) + ' · Cada asistente confirmado suma ' + duracion(act) + ' hora(s).'
+      : 'Esta actividad no tiene horario. Editala en "Actividades" para que se calculen las horas.';
+
+    const { data, error } = await db
+      .from('asistencia')
+      .select('id,horas,estado,persona_id,personas(nombre,tipo)')
+      .eq('actividad_id', actividadId);
+    if (error) { mensaje('Error al cargar: ' + error.message, 'error'); return; }
+
+    data.sort((x, y) => (x.personas?.nombre || '').localeCompare(y.personas?.nombre || ''));
+
+    // Selector: solo personas que todavía no están en esta actividad
+    const yaEstan = new Set(data.map(r => r.persona_id));
+    const selP = $('selPersona');
+    selP.innerHTML = '';
+    selP.appendChild(new Option('— Elegí una persona —', ''));
+    personas.filter(p => !yaEstan.has(p.id)).forEach(p =>
+      selP.appendChild(new Option(p.nombre + ' (' + p.tipo + ')', p.id)));
+
+    const tbody = $('filasAsis');
+    tbody.innerHTML = '';
+    let total = 0, confirmados = 0, pendientes = 0;
+    data.forEach(r => {
+      if (r.estado === 'confirmado') { confirmados++; total += Number(r.horas) || 0; }
+      else pendientes++;
+
+      const tr = document.createElement('tr');
+      const tdN = document.createElement('td'); tdN.textContent = r.personas?.nombre ?? '';
+      const tdT = document.createElement('td'); tdT.textContent = r.personas?.tipo ?? '';
+      const tdE = document.createElement('td'); tdE.appendChild(etiqueta(r.estado));
+      const tdH = document.createElement('td');
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '0'; inp.step = '0.5'; inp.value = r.horas ?? 0;
+      inp.addEventListener('change', () => guardarHoras(r.id, inp));
+      tdH.appendChild(inp);
+
+      const tdA = document.createElement('td');
+      tdA.className = 'nowrap';
+      const bc = document.createElement('button');
+      bc.className = 'mini ' + (r.estado === 'inscrito' ? 'verde' : 'gris');
+      bc.textContent = r.estado === 'inscrito' ? 'Confirmar' : 'Deshacer';
+      bc.onclick = () => cambiarEstado(r.id, r.estado === 'inscrito' ? 'confirmado' : 'inscrito');
+      const bq = document.createElement('button');
+      bq.textContent = 'Quitar'; bq.className = 'mini peligro';
+      bq.onclick = () => quitar(r);
+      tdA.append(bc, bq);
+
+      tr.append(tdN, tdT, tdE, tdH, tdA);
+      tbody.appendChild(tr);
+    });
+    $('vacioAsis').hidden = data.length > 0;
+    $('btnConfirmarTodos').hidden = pendientes === 0;
+    $('totalAsis').textContent = data.length
+      ? data.length + ' persona(s) · ' + confirmados + ' confirmada(s) · ' + pendientes + ' pendiente(s) · ' + total + ' hora(s) confirmadas'
+      : '';
+  }
+
+  async function cambiarEstado(id, estado) {
+    const { error } = await db.from('asistencia').update({ estado }).eq('id', id);
+    if (error) { mensaje('No se pudo actualizar: ' + error.message, 'error'); return; }
+    mensaje(estado === 'confirmado' ? 'Asistencia confirmada.' : 'Confirmación deshecha.', 'ok');
+    cargarAsistencia();
+  }
+
+  async function confirmarTodos() {
+    if (!confirm('¿Confirmar la asistencia de todos los inscritos en esta actividad?')) return;
+    const { error } = await db.from('asistencia')
+      .update({ estado: 'confirmado' })
+      .eq('actividad_id', actividadId).eq('estado', 'inscrito');
+    if (error) { mensaje('No se pudo confirmar: ' + error.message, 'error'); return; }
+    mensaje('Asistencia confirmada para todos los inscritos.', 'ok');
+    cargarAsistencia();
+  }
+
+  async function guardarHoras(id, inp) {
+    const horas = Number(inp.value);
+    if (isNaN(horas) || horas < 0) { mensaje('Las horas deben ser un número mayor o igual a 0.', 'error'); return; }
+    const { error } = await db.from('asistencia').update({ horas }).eq('id', id);
+    if (error) { mensaje('No se pudo guardar: ' + error.message, 'error'); return; }
+    mensaje('Horas actualizadas.', 'ok');
+    cargarAsistencia();
+  }
+
+  async function agregar() {
+    const personaId = $('selPersona').value;
+    if (!personaId) { mensaje('Elegí una persona.', 'error'); return; }
+    if (duracion(actividadActual()) <= 0) {
+      mensaje('Esta actividad no tiene horario. Editala en "Actividades" primero.', 'error');
+      return;
+    }
+    const { error } = await db.from('asistencia').insert({
+      actividad_id: Number(actividadId),
+      persona_id: Number(personaId),
+      estado: 'confirmado'
+    });
+    if (error) {
+      mensaje(error.code === '23505'
+        ? 'Esa persona ya está registrada en esta actividad.'
+        : 'No se pudo agregar: ' + error.message, 'error');
+      return;
+    }
+    mensaje('Persona agregada y confirmada.', 'ok');
+    cargarAsistencia();
+  }
+
+  async function quitar(r) {
+    if (!confirm('¿Quitar a ' + (r.personas?.nombre || 'esta persona') + ' de la actividad?')) return;
+    const { error } = await db.from('asistencia').delete().eq('id', r.id);
+    if (error) { mensaje('No se pudo quitar: ' + error.message, 'error'); return; }
+    mensaje('Persona quitada.', 'ok');
+    cargarAsistencia();
+  }
+
+  // ---- Resumen de horas (solo confirmadas) ----
+  async function cargarResumen() {
+    const { data, error } = await db
+      .from('asistencia').select('horas,estado,persona_id,personas(nombre,tipo)');
+    if (error) { alert('Error al cargar el resumen: ' + error.message); return; }
+    const mapa = {};
+    data.forEach(r => {
+      const k = r.persona_id;
+      if (!mapa[k]) mapa[k] = { nombre: r.personas?.nombre || '', tipo: r.personas?.tipo || '', actividades: 0, pendientes: 0, horas: 0 };
+      if (r.estado === 'confirmado') {
+        mapa[k].actividades += 1;
+        mapa[k].horas += Number(r.horas) || 0;
+      } else {
+        mapa[k].pendientes += 1;
+      }
+    });
+    resumen = Object.values(mapa).sort((a, b) => b.horas - a.horas);
+    pintarResumen();
+  }
+
+  function pintarResumen() {
+    const q = $('buscarRes').value.trim().toLowerCase();
+    const lista = resumen.filter(r => !q || r.nombre.toLowerCase().includes(q));
+    const tbody = $('filasRes');
+    tbody.innerHTML = '';
+    let total = 0;
+    lista.forEach(r => {
+      total += r.horas;
+      const tr = document.createElement('tr');
+      [r.nombre, r.tipo, r.actividades, r.pendientes, r.horas].forEach(v => {
+        const td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    $('vacioRes').hidden = lista.length > 0;
+    $('totalRes').textContent = lista.length
+      ? lista.length + ' persona(s) · ' + Math.round(total * 100) / 100 + ' hora(s) confirmadas en total' : '';
+  }
+
+  // ---- Pestañas y eventos ----
+  $('tabAct').onclick = () => {
+    $('vistaAct').hidden = false; $('vistaRes').hidden = true;
+    $('tabAct').className = 'activa'; $('tabRes').className = '';
+  };
+  $('tabRes').onclick = () => {
+    $('vistaAct').hidden = true; $('vistaRes').hidden = false;
+    $('tabRes').className = 'activa'; $('tabAct').className = '';
+    cargarResumen();
+  };
+  $('selAct').addEventListener('change', (e) => {
+    actividadId = e.target.value || null;
+    mensaje('');
+    cargarAsistencia();
+  });
+  $('btnAgregar').onclick = agregar;
+  $('btnConfirmarTodos').onclick = confirmarTodos;
+  $('buscarRes').addEventListener('input', pintarResumen);
+
+  iniciar();
+</script>
+</body>
+</html>
