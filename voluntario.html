@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D1MCR – Mis actividades</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #f3f5f9; color: #1f2937;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  header { background: #fff; padding: 16px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  .enc { max-width: 800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  header h1 { margin: 0 0 4px; font-size: 1.3rem; }
+  .rol { display: inline-block; background: #dbeafe; color: #1e40af; padding: 3px 10px; border-radius: 999px; font-size: .8rem; font-weight: 600; }
+  main { max-width: 800px; margin: 20px auto; padding: 0 16px; }
+  h2 { font-size: 1.1rem; margin: 26px 0 10px; }
+  button {
+    padding: 10px 16px; font-size: .95rem; font-weight: 600; color: #fff;
+    background: #2563eb; border: 0; border-radius: 8px; cursor: pointer;
+  }
+  button:hover { background: #1d4ed8; }
+  button.sec { background: #e5e7eb; color: #1f2937; }
+  button.sec:hover { background: #d1d5db; }
+  button.peligro { background: #dc2626; }
+  button.peligro:hover { background: #b91c1c; }
+  button:disabled { opacity: .6; cursor: not-allowed; }
+  .panel, .card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 4px 16px rgba(0,0,0,.06); margin-bottom: 12px; }
+  .resumen { display: flex; align-items: center; justify-content: space-between; }
+  .resumen strong { font-size: 2rem; color: #2563eb; }
+  .card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .card p { margin: 4px 0; color: #4b5563; font-size: .92rem; }
+  .card .accion { margin-top: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .etiqueta { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: .8rem; font-weight: 600; }
+  .e-inscrito { background: #fef3c7; color: #92400e; }
+  .e-confirmado { background: #dcfce7; color: #166534; }
+  .vacio { color: #6b7280; padding: 8px 2px; }
+  .aviso { background: #fef3c7; color: #92400e; padding: 16px; border-radius: 12px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="enc">
+    <div>
+      <h1 id="saludo">Hola</h1>
+      <span class="rol">Voluntario</span>
+    </div>
+    <button class="sec" id="btnSalir">Cerrar sesión</button>
+  </div>
+</header>
+
+<main>
+  <div class="aviso" id="aviso" hidden></div>
+
+  <section id="contenido" hidden>
+    <div class="panel resumen">
+      <span>Horas de voluntariado confirmadas</span>
+      <strong id="totalHoras">0</strong>
+    </div>
+
+    <h2>Próximas actividades</h2>
+    <div id="proximas"></div>
+
+    <h2>Mi historial</h2>
+    <div id="historial"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://ytaozafruibuakadoncm.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_pjgCeUpErjtlgo4WGN79Wg_hxB045Hu';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const $ = (id) => document.getElementById(id);
+
+  let perfil = null;
+  let actividades = [];
+  let mias = [];
+
+  function isoHoy() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function formatoFecha(f) {
+    const [a, m, d] = f.split('-');
+    return d + '/' + m + '/' + a;
+  }
+  function duracion(a) {
+    if (!a.hora_inicio || !a.hora_fin) return 0;
+    const [h1, m1] = a.hora_inicio.split(':').map(Number);
+    const [h2, m2] = a.hora_fin.split(':').map(Number);
+    const d = (h2 * 60 + m2 - (h1 * 60 + m1)) / 60;
+    return d > 0 ? Math.round(d * 100) / 100 : 0;
+  }
+  function horario(a) {
+    if (!a.hora_inicio || !a.hora_fin) return 'Horario por definir';
+    return a.hora_inicio.slice(0, 5) + ' – ' + a.hora_fin.slice(0, 5) + ' (' + duracion(a) + ' h)';
+  }
+
+  async function iniciar() {
+    const { data } = await db.auth.getSession();
+    if (!data.session) { location.href = 'index.html'; return; }
+    const { data: p, error } = await db
+      .from('perfiles').select('nombre, rol, persona_id').eq('id', data.session.user.id).single();
+    if (error || !p) { await db.auth.signOut(); location.href = 'index.html'; return; }
+    if (p.rol !== 'voluntario') { location.href = 'index.html'; return; }
+    perfil = p;
+    $('saludo').textContent = 'Hola, ' + p.nombre;
+    if (!p.persona_id) {
+      $('aviso').hidden = false;
+      $('aviso').textContent = 'Tu cuenta todavía no está vinculada a tu ficha de voluntario. Avisá al personal para poder inscribirte en actividades.';
+      return;
+    }
+    $('contenido').hidden = false;
+    cargar();
+  }
+
+  async function cargar() {
+    const [a, m] = await Promise.all([
+      db.from('actividades').select('*').order('fecha', { ascending: true }),
+      db.from('asistencia').select('id, estado, horas, actividad_id')
+    ]);
+    if (a.error || m.error) { alert('Error al cargar: ' + (a.error || m.error).message); return; }
+    actividades = a.data;
+    mias = m.data;
+    pintar();
+  }
+
+  function etiqueta(estado) {
+    const s = document.createElement('span');
+    s.className = 'etiqueta ' + (estado === 'confirmado' ? 'e-confirmado' : 'e-inscrito');
+    s.textContent = estado === 'confirmado' ? 'Asistencia confirmada' : 'Inscrito · pendiente de confirmación';
+    return s;
+  }
+
+  function tarjeta(a, r, conAccion) {
+    const c = document.createElement('div');
+    c.className = 'card';
+    const h = document.createElement('h3'); h.textContent = a.nombre;
+    const p1 = document.createElement('p'); p1.textContent = formatoFecha(a.fecha) + ' · ' + horario(a);
+    c.append(h, p1);
+    if (a.lugar) { const p = document.createElement('p'); p.textContent = 'Lugar: ' + a.lugar; c.appendChild(p); }
+    if (a.descripcion) { const p = document.createElement('p'); p.textContent = a.descripcion; c.appendChild(p); }
+
+    const acc = document.createElement('div');
+    acc.className = 'accion';
+    if (r) {
+      acc.appendChild(etiqueta(r.estado));
+      if (conAccion && r.estado === 'inscrito') {
+        const b = document.createElement('button');
+        b.textContent = 'Cancelar inscripción'; b.className = 'sec';
+        b.onclick = () => cancelar(r);
+        acc.appendChild(b);
+      }
+    } else if (conAccion) {
+      const b = document.createElement('button');
+      if (duracion(a) > 0) {
+        b.textContent = 'Inscribirme';
+        b.onclick = () => inscribir(a, b);
+      } else {
+        b.textContent = 'Horario por definir'; b.disabled = true;
+      }
+      acc.appendChild(b);
+    }
+    if (acc.childNodes.length) c.appendChild(acc);
+    return c;
+  }
+
+  function pintar() {
+    const hoy = isoHoy();
+    const porAct = new Map(mias.map(r => [r.actividad_id, r]));
+
+    const prox = actividades.filter(a => a.fecha >= hoy);
+    $('proximas').innerHTML = '';
+    if (!prox.length) {
+      $('proximas').innerHTML = '<p class="vacio">No hay actividades próximas por ahora.</p>';
+    }
+    prox.forEach(a => $('proximas').appendChild(tarjeta(a, porAct.get(a.id), true)));
+
+    const hist = actividades.filter(a => a.fecha < hoy && porAct.has(a.id)).reverse();
+    $('historial').innerHTML = '';
+    if (!hist.length) {
+      $('historial').innerHTML = '<p class="vacio">Todavía no tenés actividades en tu historial.</p>';
+    }
+    hist.forEach(a => $('historial').appendChild(tarjeta(a, porAct.get(a.id), false)));
+
+    const total = mias
+      .filter(r => r.estado === 'confirmado')
+      .reduce((s, r) => s + (Number(r.horas) || 0), 0);
+    $('totalHoras').textContent = Math.round(total * 100) / 100;
+  }
+
+  async function inscribir(a, btn) {
+    btn.disabled = true;
+    const { error } = await db.from('asistencia')
+      .insert({ actividad_id: a.id, persona_id: perfil.persona_id });
+    if (error) {
+      alert(error.code === '23505'
+        ? 'Ya estás inscrito en esta actividad.'
+        : 'No se pudo inscribir: ' + error.message);
+      btn.disabled = false;
+      return;
+    }
+    cargar();
+  }
+
+  async function cancelar(r) {
+    if (!confirm('¿Cancelar tu inscripción a esta actividad?')) return;
+    const { error } = await db.from('asistencia').delete().eq('id', r.id);
+    if (error) { alert('No se pudo cancelar: ' + error.message); return; }
+    cargar();
+  }
+
+  $('btnSalir').onclick = async () => {
+    await db.auth.signOut();
+    location.href = 'index.html';
+  };
+
+  iniciar();
+</script>
+</body>
+</html>
