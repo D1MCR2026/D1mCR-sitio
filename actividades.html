@@ -40,6 +40,7 @@
   dialog::backdrop { background: rgba(0,0,0,.4); }
   dialog h2 { margin: 0 0 8px; font-size: 1.2rem; }
   label { display: block; font-size: .85rem; font-weight: 600; margin: 12px 0 5px; }
+  .fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .acciones { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
   #err { color: #b91c1c; font-size: .9rem; min-height: 1.2em; margin-top: 10px; }
   [hidden] { display: none !important; }
@@ -61,7 +62,7 @@
   <div class="tabla-wrap">
     <table>
       <thead>
-        <tr><th>Fecha</th><th>Nombre</th><th>Lugar</th><th>Descripción</th><th>Acciones</th></tr>
+        <tr><th>Fecha</th><th>Horario</th><th>Nombre</th><th>Lugar</th><th>Descripción</th><th>Acciones</th></tr>
       </thead>
       <tbody id="filas"></tbody>
     </table>
@@ -78,6 +79,17 @@
 
     <label for="f_fecha">Fecha *</label>
     <input id="f_fecha" type="date" required>
+
+    <div class="fila2">
+      <div>
+        <label for="f_ini">Hora de inicio *</label>
+        <input id="f_ini" type="time" required>
+      </div>
+      <div>
+        <label for="f_fin">Hora de fin *</label>
+        <input id="f_fin" type="time" required>
+      </div>
+    </div>
 
     <label for="f_lugar">Lugar</label>
     <input id="f_lugar">
@@ -125,6 +137,11 @@
     return d + '/' + m + '/' + a;
   }
 
+  function horario(a) {
+    if (!a.hora_inicio || !a.hora_fin) return 'Sin horario';
+    return a.hora_inicio.slice(0, 5) + ' – ' + a.hora_fin.slice(0, 5);
+  }
+
   function pintar() {
     const q = $('buscar').value.trim().toLowerCase();
     const lista = actividades.filter(a =>
@@ -135,9 +152,9 @@
     tbody.innerHTML = '';
     lista.forEach(a => {
       const tr = document.createElement('tr');
-      [formatoFecha(a.fecha), a.nombre, a.lugar, a.descripcion].forEach((v, i) => {
+      [formatoFecha(a.fecha), horario(a), a.nombre, a.lugar, a.descripcion].forEach((v, i) => {
         const td = document.createElement('td');
-        if (i === 0) td.className = 'nowrap';
+        if (i < 2) td.className = 'nowrap';
         td.textContent = v ?? '';
         tr.appendChild(td);
       });
@@ -161,6 +178,8 @@
     $('titulo').textContent = a ? 'Editar actividad' : 'Nueva actividad';
     $('f_nombre').value = a?.nombre || '';
     $('f_fecha').value = a?.fecha || '';
+    $('f_ini').value = a?.hora_inicio ? a.hora_inicio.slice(0, 5) : '';
+    $('f_fin').value = a?.hora_fin ? a.hora_fin.slice(0, 5) : '';
     $('f_lugar').value = a?.lugar || '';
     $('f_desc').value = a?.descripcion || '';
     $('err').textContent = '';
@@ -172,11 +191,17 @@
     const datos = {
       nombre: $('f_nombre').value.trim(),
       fecha: $('f_fecha').value,
+      hora_inicio: $('f_ini').value || null,
+      hora_fin: $('f_fin').value || null,
       lugar: $('f_lugar').value.trim() || null,
       descripcion: $('f_desc').value.trim() || null
     };
-    if (!datos.nombre || !datos.fecha) {
-      $('err').textContent = 'El nombre y la fecha son obligatorios.';
+    if (!datos.nombre || !datos.fecha || !datos.hora_inicio || !datos.hora_fin) {
+      $('err').textContent = 'El nombre, la fecha y el horario son obligatorios.';
+      return;
+    }
+    if (datos.hora_fin <= datos.hora_inicio) {
+      $('err').textContent = 'La hora de fin debe ser posterior a la de inicio.';
       return;
     }
     const res = editandoId
