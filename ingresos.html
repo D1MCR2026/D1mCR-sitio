@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D1MCR – Ingreso al salón</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #f3f5f9; color: #1f2937;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  header { background: #fff; padding: 16px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  header a { color: #2563eb; text-decoration: none; font-size: .9rem; }
+  header h1 { margin: 6px 0 0; font-size: 1.4rem; }
+  main { max-width: 1000px; margin: 20px auto; padding: 0 16px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .tabs button { background: #e5e7eb; color: #1f2937; }
+  .tabs button.activa { background: #2563eb; color: #fff; }
+  input, select {
+    padding: 12px 14px; font-size: 1.05rem; width: 100%;
+    border: 1px solid #d1d5db; border-radius: 8px; font-family: inherit; background: #fff;
+  }
+  label { display: block; font-size: .9rem; font-weight: 600; margin: 14px 0 6px; }
+  button {
+    padding: 11px 18px; font-size: 1rem; font-weight: 600; color: #fff;
+    background: #2563eb; border: 0; border-radius: 8px; cursor: pointer;
+  }
+  button:hover { background: #1d4ed8; }
+  button:disabled { opacity: .6; cursor: not-allowed; }
+  button.gris { background: #e5e7eb; color: #1f2937; }
+  button.gris:hover { background: #d1d5db; }
+  button.grande { width: 100%; margin-top: 20px; padding: 14px; font-size: 1.1rem; }
+  .panel { background: #fff; border-radius: 12px; padding: 22px; box-shadow: 0 4px 16px rgba(0,0,0,.06); margin-bottom: 16px; }
+  .panel h2 { margin: 0 0 4px; font-size: 1.15rem; }
+  .centrado { max-width: 560px; margin-left: auto; margin-right: auto; }
+  .sub { margin: 0; color: #6b7280; font-size: .92rem; }
+  .aviso { margin-top: 16px; padding: 14px 16px; border-radius: 10px; font-size: 1rem; }
+  .aviso.ok { background: #dcfce7; color: #166534; }
+  .aviso.error { background: #fee2e2; color: #991b1b; }
+  .fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .acciones { display: flex; gap: 10px; margin-top: 20px; }
+  .acciones button { flex: 1; }
+  .rango { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+  .rango > div { flex: 1; min-width: 150px; }
+  .rango input { padding: 10px 12px; font-size: 1rem; }
+  .tarjetas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+  .tarjeta { background: #f3f5f9; border-radius: 10px; padding: 14px; }
+  .tarjeta strong { display: block; font-size: 1.8rem; color: #2563eb; }
+  .tarjeta span { color: #6b7280; font-size: .9rem; }
+  .tabla-wrap { overflow-x: auto; margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eef0f4; white-space: nowrap; }
+  th { background: #f9fafb; font-size: .8rem; text-transform: uppercase; color: #6b7280; }
+  .vacio { text-align: center; color: #6b7280; padding: 16px; }
+  h3 { margin: 22px 0 4px; font-size: 1rem; }
+  [hidden] { display: none !important; }
+  @media (max-width: 600px) { .fila2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html">← Volver al menú</a>
+  <h1>Ingreso al salón</h1>
+</header>
+
+<main>
+  <div class="tabs">
+    <button id="tabReg" class="activa">Registrar ingreso</button>
+    <button id="tabRep">Reportes</button>
+  </div>
+
+  <!-- VISTA 1: REGISTRO -->
+  <section id="vistaReg">
+    <div class="panel centrado">
+      <h2>Registro de ingreso</h2>
+      <p class="sub">Escribí tu número de cédula y el motivo de tu visita.</p>
+
+      <form id="formIngreso">
+        <label for="cedula">Número de cédula</label>
+        <input id="cedula" autocomplete="off" required>
+
+        <label for="motivo">Motivo del ingreso</label>
+        <input id="motivo" list="motivos" autocomplete="off" required placeholder="Elegí o escribí el motivo">
+        <datalist id="motivos">
+          <option value="Clase o capacitación">
+          <option value="Actividad de voluntariado">
+          <option value="Reunión">
+          <option value="Uso de computadoras">
+          <option value="Trámite o consulta">
+        </datalist>
+
+        <button class="grande" id="btnIngreso" type="submit">Registrar ingreso</button>
+      </form>
+
+      <!-- Primera vez -->
+      <form id="formPrimera" hidden>
+        <div class="aviso error" style="margin-top:20px">
+          No encontramos tu cédula. Como es tu primer ingreso, completá estos datos una sola vez.
+        </div>
+        <label for="p_nombre">Nombre completo *</label>
+        <input id="p_nombre" required>
+        <div class="fila2">
+          <div>
+            <label for="p_tel">Teléfono</label>
+            <input id="p_tel" type="tel">
+          </div>
+          <div>
+            <label for="p_tipo">Soy</label>
+            <select id="p_tipo">
+              <option value="egresado">Egresado</option>
+              <option value="voluntario">Voluntario</option>
+            </select>
+          </div>
+        </div>
+        <label for="p_correo">Correo</label>
+        <input id="p_correo" type="email">
+        <div class="acciones">
+          <button type="button" class="gris" id="btnCancelarPrimera">Cancelar</button>
+          <button type="submit" id="btnPrimera">Registrarme y entrar</button>
+        </div>
+      </form>
+
+      <div class="aviso" id="aviso" hidden></div>
+    </div>
+  </section>
+
+  <!-- VISTA 2: REPORTES -->
+  <section id="vistaRep" hidden>
+    <div class="panel">
+      <h2>Reporte de ingresos</h2>
+      <div class="rango" style="margin-top:12px">
+        <div>
+          <label for="desde" style="margin-top:0">Desde</label>
+          <input id="desde" type="date">
+        </div>
+        <div>
+          <label for="hasta" style="margin-top:0">Hasta</label>
+          <input id="hasta" type="date">
+        </div>
+        <button id="btnReporte">Ver reporte</button>
+      </div>
+
+      <div class="tarjetas">
+        <div class="tarjeta"><strong id="totIngresos">0</strong><span>Ingresos en total</span></div>
+        <div class="tarjeta"><strong id="totPersonas">0</strong><span>Personas distintas</span></div>
+      </div>
+
+      <h3>Ingresos por persona</h3>
+      <input id="buscarRep" type="search" placeholder="Buscar por nombre o cédula" style="margin-top:8px; padding:10px 12px; font-size:1rem">
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>Nombre</th><th>Cédula</th><th>Tipo</th><th>Veces</th><th>Última entrada</th></tr></thead>
+          <tbody id="filasRep"></tbody>
+        </table>
+        <p class="vacio" id="vacioRep" hidden>No hay ingresos en este rango de fechas.</p>
+      </div>
+
+      <h3>Detalle (los 100 más recientes del rango)</h3>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>Fecha y hora</th><th>Nombre</th><th>Cédula</th><th>Motivo</th></tr></thead>
+          <tbody id="filasDet"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://ytaozafruibuakadoncm.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_pjgCeUpErjtlgo4WGN79Wg_hxB045Hu';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const $ = (id) => document.getElementById(id);
+
+  let cedulaPend = '';
+  let motivoPend = '';
+  let temporizador = null;
+  let reporte = [];
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const isoDe = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  const fechaHora = (iso) => new Date(iso).toLocaleString('es-CR', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+
+  function aviso(texto, tipo) {
+    const a = $('aviso');
+    a.textContent = texto;
+    a.className = 'aviso ' + tipo;
+    a.hidden = false;
+  }
+  function ocultarAviso() { $('aviso').hidden = true; }
+
+  function reiniciar() {
+    $('cedula').value = '';
+    $('motivo').value = '';
+    $('formPrimera').reset();
+    $('formPrimera').hidden = true;
+    $('formIngreso').hidden = false;
+    cedulaPend = ''; motivoPend = '';
+    $('cedula').focus();
+  }
+
+  async function iniciar() {
+    const { data } = await db.auth.getSession();
+    if (!data.session) { location.href = 'index.html'; return; }
+    const { data: perfil } = await db
+      .from('perfiles').select('rol').eq('id', data.session.user.id).single();
+    if (!perfil || perfil.rol === 'voluntario') { location.href = 'index.html'; return; }
+
+    const hoy = new Date();
+    $('hasta').value = isoDe(hoy);
+    $('desde').value = isoDe(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+    $('cedula').focus();
+  }
+
+  // ---------- REGISTRO ----------
+  async function registrarIngreso(persona, motivo) {
+    const { error } = await db.from('ingresos').insert({ persona_id: persona.id, motivo });
+    if (error) { aviso('No se pudo registrar el ingreso: ' + error.message, 'error'); return; }
+    const { count } = await db.from('ingresos')
+      .select('id', { count: 'exact', head: true }).eq('persona_id', persona.id);
+    clearTimeout(temporizador);
+    reiniciar();
+    aviso('¡Bienvenido/a, ' + persona.nombre + '! Tu ingreso quedó registrado. Esta es tu visita número ' + (count ?? 1) + '.', 'ok');
+    temporizador = setTimeout(ocultarAviso, 8000);
+  }
+
+  $('formIngreso').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ocultarAviso();
+    const ced = $('cedula').value.trim();
+    const mot = $('motivo').value.trim();
+    if (!ced || !mot) { aviso('Escribí tu cédula y el motivo de tu ingreso.', 'error'); return; }
+
+    $('btnIngreso').disabled = true;
+    const { data, error } = await db.rpc('buscar_persona_por_cedula', { c: ced });
+    $('btnIngreso').disabled = false;
+    if (error) { aviso('No se pudo buscar la cédula: ' + error.message, 'error'); return; }
+
+    if (data && data.length) {
+      await registrarIngreso(data[0], mot);
+    } else {
+      cedulaPend = ced;
+      motivoPend = mot;
+      $('formIngreso').hidden = true;
+      $('formPrimera').hidden = false;
+      $('p_nombre').focus();
+    }
+  });
+
+  $('formPrimera').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ocultarAviso();
+    const nombre = $('p_nombre').value.trim();
+    if (!nombre) { aviso('El nombre es obligatorio.', 'error'); return; }
+    $('btnPrimera').disabled = true;
+    const { data, error } = await db.from('personas').insert({
+      tipo: $('p_tipo').value,
+      nombre,
+      cedula: cedulaPend,
+      telefono: $('p_tel').value.trim() || null,
+      correo: $('p_correo').value.trim() || null
+    }).select('id, nombre').single();
+    $('btnPrimera').disabled = false;
+    if (error) {
+      aviso(error.code === '23505'
+        ? 'Esa cédula ya está registrada. Volvé atrás y probá de nuevo.'
+        : 'No se pudo crear tu registro: ' + error.message, 'error');
+      return;
+    }
+    await registrarIngreso(data, motivoPend);
+  });
+
+  $('btnCancelarPrimera').onclick = () => { ocultarAviso(); reiniciar(); };
+
+  // ---------- REPORTES ----------
+  async function cargarReporte() {
+    const desde = $('desde').value, hasta = $('hasta').value;
+    if (!desde || !hasta || desde > hasta) {
+      alert('Elegí un rango de fechas válido.');
+      return;
+    }
+    const { data, error } = await db.rpc('reporte_ingresos', { desde, hasta });
+    if (error) { alert('Error al cargar el reporte: ' + error.message); return; }
+    reporte = data || [];
+    pintarReporte();
+    cargarDetalle(desde, hasta);
+  }
+
+  function celda(tr, texto) {
+    const td = document.createElement('td');
+    td.textContent = texto ?? '';
+    tr.appendChild(td);
+  }
+
+  function pintarReporte() {
+    $('totIngresos').textContent = reporte.reduce((s, r) => s + Number(r.veces), 0);
+    $('totPersonas').textContent = reporte.length;
+
+    const q = $('buscarRep').value.trim().toLowerCase();
+    const lista = reporte.filter(r =>
+      !q || (r.nombre || '').toLowerCase().includes(q) || (r.cedula || '').toLowerCase().includes(q));
+    const tbody = $('filasRep');
+    tbody.innerHTML = '';
+    lista.forEach(r => {
+      const tr = document.createElement('tr');
+      celda(tr, r.nombre); celda(tr, r.cedula); celda(tr, r.tipo);
+      celda(tr, r.veces); celda(tr, fechaHora(r.ultima_entrada));
+      tbody.appendChild(tr);
+    });
+    $('vacioRep').hidden = lista.length > 0;
+  }
+
+  async function cargarDetalle(desde, hasta) {
+    const [y1, m1, d1] = desde.split('-').map(Number);
+    const [y2, m2, d2] = hasta.split('-').map(Number);
+    const ini = new Date(y1, m1 - 1, d1).toISOString();
+    const fin = new Date(y2, m2 - 1, d2 + 1).toISOString();
+    const { data, error } = await db.from('ingresos')
+      .select('entrada, motivo, nombre_visitante, personas(nombre, cedula)')
+      .gte('entrada', ini).lt('entrada', fin)
+      .order('entrada', { ascending: false }).limit(100);
+    if (error) { alert('Error al cargar el detalle: ' + error.message); return; }
+    const tbody = $('filasDet');
+    tbody.innerHTML = '';
+    data.forEach(r => {
+      const tr = document.createElement('tr');
+      celda(tr, fechaHora(r.entrada));
+      celda(tr, r.personas?.nombre || r.nombre_visitante || '(sin nombre)');
+      celda(tr, r.personas?.cedula || '');
+      celda(tr, r.motivo);
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ---------- PESTAÑAS ----------
+  $('tabReg').onclick = () => {
+    $('vistaReg').hidden = false; $('vistaRep').hidden = true;
+    $('tabReg').className = 'activa'; $('tabRep').className = '';
+    $('cedula').focus();
+  };
+  $('tabRep').onclick = () => {
+    $('vistaReg').hidden = true; $('vistaRep').hidden = false;
+    $('tabRep').className = 'activa'; $('tabReg').className = '';
+    cargarReporte();
+  };
+  $('btnReporte').onclick = cargarReporte;
+  $('buscarRep').addEventListener('input', pintarReporte);
+
+  iniciar();
+</script>
+</body>
+</html>
